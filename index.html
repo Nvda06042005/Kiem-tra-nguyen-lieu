@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Kiểm Tra Nguyên Liệu - KovaNano</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏭 HỆ THỐNG KIỂM TRA NGUYÊN LIỆU</h1>
+            <div class="datetime" id="currentDateTime"></div>
+        </header>
+
+        <!-- Summary Cards -->
+        <div class="summary-cards">
+            <div class="summary-card total">
+                <div class="summary-icon">🛢️</div>
+                <div class="summary-info">
+                    <div class="summary-label">Tổng số bồn</div>
+                    <div class="summary-value" id="totalTanks">0</div>
+                </div>
+            </div>
+            <div class="summary-card available">
+                <div class="summary-icon">✅</div>
+                <div class="summary-info">
+                    <div class="summary-label">Bồn còn</div>
+                    <div class="summary-value" id="availableTanks">0</div>
+                </div>
+            </div>
+            <div class="summary-card warning">
+                <div class="summary-icon">⚠️</div>
+                <div class="summary-info">
+                    <div class="summary-label">Sắp hết</div>
+                    <div class="summary-value" id="warningTanks">0</div>
+                </div>
+            </div>
+            <div class="summary-card empty">
+                <div class="summary-icon">❌</div>
+                <div class="summary-info">
+                    <div class="summary-label">Hết</div>
+                    <div class="summary-value" id="emptyTanks">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Modal -->
+        <div class="modal" id="formSection" style="display:none;">
+            <div class="modal-content">
+                <h3 id="formTitle">✏️ Chỉnh sửa bồn nguyên liệu</h3>
+                <form id="tankForm">
+                    <input type="hidden" id="tankId">
+                    <input type="hidden" id="tankName">
+                    <input type="hidden" id="capacity">
+                    <input type="hidden" id="currentVolume">
+                    <input type="hidden" id="density">
+                    <div class="form-group">
+                        <label for="currentMassInput">Khối lượng hiện tại (kg):</label>
+                        <input type="number" id="currentMassInput" min="0" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label for="warningThreshold">Ngưỡng cảnh báo (kg):</label>
+                        <input type="number" id="warningThreshold" min="0" step="0.001" value="0.2">
+                    </div>
+                    <div class="form-buttons">
+                        <button type="submit" class="btn btn-primary">Lưu</button>
+                        <button type="button" class="btn btn-secondary" id="cancelBtn">Hủy</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Warning Banner -->
+        <div class="warning-banner" id="warningBanner" style="display:none;">
+            <span class="warning-icon">⚠️</span>
+            <span id="warningMessage"></span>
+        </div>
+
+        <!-- Tanks Table -->
+        <div class="table-section">
+            <div class="filter-header">
+                <h2>📊 Danh sách bồn nguyên liệu</h2>
+                <button class="btn btn-primary btn-filter" onclick="openFilterModal()">🔍 Lọc bồn</button>
+            </div>
+            <div class="table-container">
+                <table id="tanksTable">
+                    <thead>
+                        <tr>
+                            <th>STT</th>
+                            <th>Tên bồn</th>
+                            <th>Khối lượng còn (kg)</th>
+                            <th>Khối lượng đã dùng (kg)</th>
+                            <th>Trạng thái</th>
+                            <th>Cập nhật</th>
+                            <th>Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tanksTableBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Usage History -->
+        <div class="history-section">
+            <h2>📈 Lịch sử sử dụng nguyên liệu</h2>
+            <div class="history-controls">
+                <div class="date-filter-row">
+                    <div class="date-field">
+                        <label for="historyFromDate">Từ ngày:</label>
+                        <input type="date" id="historyFromDate">
+                    </div>
+                    <div class="date-field">
+                        <label for="historyToDate">Đến ngày:</label>
+                        <input type="date" id="historyToDate">
+                    </div>
+                    <button class="btn btn-secondary btn-small" onclick="resetHistoryDateFilter()">Đặt lại</button>
+                    <button class="btn btn-success btn-small" id="exportExcelBtn" onclick="exportHistoryToExcel()">📊 Xuất Excel</button>
+                </div>
+                <span id="exportStatus" class="export-status"></span>
+            </div>
+            <div class="table-container">
+                <table id="historyTable">
+                    <thead>
+                        <tr>
+                            <th>STT</th>
+                            <th>Thời gian</th>
+                            <th>Tên bồn</th>
+                            <th>Khối lượng dùng (kg)</th>
+                            <th>Khối lượng còn lại (kg)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody">
+                    </tbody>
+                </table>
+            </div>
+            <button class="btn btn-danger" id="clearHistoryBtn">Xóa lịch sử</button>
+        </div>
+
+        <footer>
+            <p>© 2026 Hệ Thống Kiểm Tra Nguyên Liệu - KovaNano | Phát triển bởi Cline</p>
+        </footer>
+    </div>
+
+    <!-- Filter Modal -->
+    <div class="modal" id="filterModal" style="display:none;">
+        <div class="modal-content">
+            <h3>🔍 Lọc danh sách bồn</h3>
+            <form id="filterForm" onsubmit="return false;">
+                <div class="form-group">
+                    <label for="filterName">Tên bồn:</label>
+                    <input type="text" id="filterName" placeholder="VD: 101, FM112...">
+                </div>
+                <div class="form-group">
+                    <label for="filterCurrentMass">Khối lượng còn tối thiểu (kg):</label>
+                    <input type="number" id="filterCurrentMass" min="0" step="0.001" placeholder="VD: 0.1">
+                </div>
+                <div class="form-group">
+                    <label for="filterUsedMass">Khối lượng đã dùng tối thiểu (kg):</label>
+                    <input type="number" id="filterUsedMass" min="0" step="0.001" placeholder="VD: 0.05">
+                </div>
+                <div class="form-group">
+                    <label for="filterStatus">Trạng thái:</label>
+                    <select id="filterStatus">
+                        <option value="">Tất cả</option>
+                        <option value="available">✅ Còn</option>
+                        <option value="warning">⚠️ Sắp hết</option>
+                        <option value="empty">❌ Hết</option>
+                    </select>
+                </div>
+                <div class="form-buttons">
+                    <button type="button" class="btn btn-primary" onclick="applyFilter()">Áp dụng</button>
+                    <button type="button" class="btn btn-secondary" onclick="clearFilter()">Xóa lọc</button>
+                    <button type="button" class="btn btn-danger" id="closeFilterBtn">Đóng</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Usage Modal -->
+    <div class="modal" id="usageModal" style="display:none;">
+        <div class="modal-content">
+            <h3>📋 Cập nhật sử dụng nguyên liệu</h3>
+            <div class="modal-info" id="modalTankInfo"></div>
+            <form id="usageForm">
+                <input type="hidden" id="usageTankId">
+                <div class="form-group">
+                    <label for="usageAmount">Khối lượng sử dụng (kg):</label>
+                    <input type="number" id="usageAmount" placeholder="VD: 0.05" min="0" step="0.001" required>
+                </div>
+                <div class="form-buttons">
+                    <button type="submit" class="btn btn-primary">Cập nhật</button>
+                    <button type="button" class="btn btn-secondary" id="closeModalBtn">Đóng</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
